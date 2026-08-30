@@ -1,3 +1,5 @@
+import os
+os.environ['DISPLAY'] = ''
 import streamlit as st
 import cv2
 import numpy as np
@@ -127,27 +129,87 @@ with col2:
     security_placeholder = st.empty()
     stats_placeholder = st.empty()
 
-# Camera Stream
-st.write("Starting camera... Please allow camera access when prompted.")
+# Mode Selection
+mode = st.radio("Select Mode:", ["📷 Live Camera (Desktop)", "📤 Upload Image"])
 
-cap = cv2.VideoCapture(0)
+# Mode Selection
+mode = st.radio("Select Mode:", ["📷 Live Camera (Desktop)", "📤 Upload Image"])
 
-if not cap.isOpened():
-    st.error("❌ Unable to access camera. Please check your camera settings.")
-else:
-    start_time = time.time()
-    total_frames = 0
-    slouch_frames = 0
+if mode == "📷 Live Camera (Desktop)":
+    st.info("💡 **Note:** Live camera works best on desktop. Use 'Upload Image' on mobile or for testing.")
     
-    while True:
-        ret, frame = cap.read()
+    st.write("Starting camera... Please allow camera access when prompted.")
+    
+    cap = cv2.VideoCapture(0)
+    
+    if not cap.isOpened():
+        st.error("❌ Unable to access camera. On Streamlit Cloud, use 'Upload Image' mode instead.")
+    else:
+        start_time = time.time()
+        total_frames = 0
+        slouch_frames = 0
         
-        if not ret:
-            st.error("❌ Failed to read frame from camera")
-            break
+        stop_button = st.button("Stop Monitoring", key="stop_button")
         
-        # Flip frame for selfie view
-        frame = cv2.flip(frame, 1)
+        while not stop_button:
+            ret, frame = cap.read()
+            
+            if not ret:
+                st.error("❌ Failed to read frame from camera")
+                break
+            
+            # Flip frame for selfie view
+            frame = cv2.flip(frame, 1)
+            
+            # Analyze posture
+            posture_status, angle, frame = analyze_posture(frame, pose_model, sensitivity)
+            
+            # Detect intruders
+            security_status, face_count, frame = detect_faces(frame, face_model)
+            
+            # Update counters
+            total_frames += 1
+            if "Slouching" in posture_status:
+                slouch_frames += 1
+            
+            # Calculate session stats
+            elapsed_time = time.time() - start_time
+            minutes = int(elapsed_time // 60)
+            seconds = int(elapsed_time % 60)
+            score = max(0, 100 - (slouch_frames / total_frames * 100)) if total_frames > 0 else 100
+            
+            # Convert frame to RGB for display
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Update displays
+            with col1:
+                video_placeholder.image(frame_rgb, use_column_width=True)
+            
+            with col2:
+                with posture_placeholder.container():
+                    st.metric(label="Posture Status", value=posture_status, delta=f"{angle:.1f}°")
+                
+                with security_placeholder.container():
+                    st.metric(label="Security", value=security_status, delta=f"{face_count} face(s)")
+                
+                with stats_placeholder.container():
+                    st.metric(label="Posture Score", value=f"{score:.1f}%")
+                    st.metric(label="Session Duration", value=f"{minutes}m {seconds}s")
+            
+            # Small delay to prevent overwhelming the browser
+            time.sleep(0.03)
+        
+        cap.release()
+        st.success("✅ Monitoring stopped")
+
+else:  # Upload Image mode
+    st.write("Upload an image to analyze posture and detect intruders.")
+    
+    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+    
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file)
+        frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         
         # Analyze posture
         posture_status, angle, frame = analyze_posture(frame, pose_model, sensitivity)
@@ -155,41 +217,13 @@ else:
         # Detect intruders
         security_status, face_count, frame = detect_faces(frame, face_model)
         
-        # Update counters
-        total_frames += 1
-        if "Slouching" in posture_status:
-            slouch_frames += 1
-        
-        # Calculate session stats
-        elapsed_time = time.time() - start_time
-        minutes = int(elapsed_time // 60)
-        seconds = int(elapsed_time % 60)
-        score = max(0, 100 - (slouch_frames / total_frames * 100)) if total_frames > 0 else 100
-        
         # Convert frame to RGB for display
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         
-        # Update displays
         with col1:
-            video_placeholder.image(frame_rgb, use_column_width=True)
+            st.image(frame_rgb, use_column_width=True)
         
         with col2:
-            with posture_placeholder.container():
-                st.metric(label="Posture Status", value=posture_status, delta=f"{angle:.1f}°")
-            
-            with security_placeholder.container():
-                st.metric(label="Security", value=security_status, delta=f"{face_count} face(s)")
-            
-            with stats_placeholder.container():
-                st.metric(label="Posture Score", value=f"{score:.1f}%")
-                st.metric(label="Session Duration", value=f"{minutes}m {seconds}s")
-        
-        # Small delay to prevent overwhelming the browser
-        time.sleep(0.03)
-        
-        # Optional: Add a stop button
-        if st.button("Stop Monitoring", key="stop_button"):
-            break
-
-cap.release()
-st.success("✅ Monitoring stopped")
+            st.metric(label="Posture Status", value=posture_status, delta=f"{angle:.1f}°")
+            st.metric(label="Security", value=security_status, delta=f"{face_count} face(s)")
+            st.metric(label="Posture Score", value="N/A (Single Frame)")
