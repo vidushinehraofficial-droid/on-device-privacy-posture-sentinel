@@ -4,8 +4,8 @@ import streamlit as st
 import cv2
 import numpy as np
 import mediapipe as mp
-import mediapipe.python.solutions.pose as mp_pose
-import mediapipe.python.solutions.face_detection as mp_face
+import mediapipe.solutions.pose as mp_pose
+import mediapipe.solutions.face_detection as mp_face
 from PIL import Image
 import time
 
