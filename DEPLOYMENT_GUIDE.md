@@ -18,7 +18,9 @@ Streamlit Cloud is a FREE hosting platform for Streamlit apps. Your friends can 
 
 Your code is already on GitHub! Make sure your repository is public:
 
-1. Go to your GitHub repo: `https://github.com/vidushinehraofficial-droid/on-device-privacy-posture-sentinel`
+1. Go to your GitHub repo: `https://github.com/vidushinehraofficial-droid/on-device-privacModuleNotFoundError: This app has encountered an error. The original error message is redacted to prevent data leaks. Full error details have been recorded in the logs (if you're on Streamlit Cloud, click on 'Manage app' in the lower right of your app).
+Traceback:
+Fy-posture-sentinel`
 2. Click **Settings** → **General**
 3. Under **Visibility**, make sure it's **Public**
 4. Save
