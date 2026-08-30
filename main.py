@@ -1,37 +1,20 @@
-# Main Application Entry Point
-# main.py - Core Application Entry Point
-
-import cv2
-from vision_module import PostureTracker
-from security_module import SecuritySentinel
+# main.py - Complete 3-Person Team Integration
+from vision_module import PostureTracker       # Person 1 (Yashika)
+from security_module import SecuritySentinel    # Person 2 (Vanshika)
+from gui_module import SentinelApp              # Person 3
 
 def main():
-    tracker = PostureTracker()
-    sentinel = SecuritySentinel()
-    cap = cv2.VideoCapture(0)
+    print("[1/3] Initializing Vision Module (Yashika)...")
+    posture_tracker = PostureTracker()
 
-    print("[INFO] Starting On-Device Privacy & Posture Sentinel...")
+    print("[2/3] Initializing Security Sentinel (Vanshika)...")
+    security_sentinel = SecuritySentinel()
 
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        # Run detection pipelines
-        posture_data = tracker.process_frame(frame)
-        security_data = sentinel.detect_intruders(frame)
-
-        # Check for unauthorized secondary viewers
-        if security_data["intruder_detected"]:
-            print("[ALERT] Intruder detected! Locking screen...")
-            # sentinel.lock_screen() # Uncomment when ready to test live
-
-        cv2.imshow("Sentinel Camera Stream", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
+    print("[3/3] Launching Dashboard Interface (Person 3)...")
+    app = SentinelApp(posture_tracker, security_sentinel)
+    
+    app.protocol("WM_DELETE_WINDOW", app.on_closing)
+    app.mainloop()
 
 if __name__ == "__main__":
     main()
