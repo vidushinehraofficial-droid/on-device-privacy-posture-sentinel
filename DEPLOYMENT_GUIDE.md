@@ -1,28 +1,32 @@
 # 🚀 Web App Deployment Guide (Streamlit Cloud)
 
-## What is Streamlit Cloud?
-Streamlit Cloud is a FREE hosting platform for Streamlit apps. Your friends can access the app from any browser - no installation needed!
+## ⚠️ Important Note
+**Streamlit Cloud = Preview/Demo Only**
+
+For **live posture monitoring with full features**, run locally:
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
+Streamlit Cloud has system library limitations, so the web version is a simplified preview.
 
 ---
 
-## Step 1: Create a Streamlit Account (One-time)
+## Step 1: Create a Streamlit Account
 
 1. Go to **https://share.streamlit.io**
 2. Click **Sign up**
-3. Use GitHub account to sign up (easiest)
-4. Authorize Streamlit to connect to your GitHub
+3. Use your GitHub account (easiest)
+4. Authorize Streamlit to connect
 
 ---
 
-## Step 2: Push Your Code to GitHub
+## Step 2: Make Repository Public
 
-Your code is already on GitHub! Make sure your repository is public:
-
-1. Go to your GitHub repo: `https://github.com/vidushinehraofficial-droid/on-device-privacModuleNotFoundError: This app has encountered an error. The original error message is redacted to prevent data leaks. Full error details have been recorded in the logs (if you're on Streamlit Cloud, click on 'Manage app' in the lower right of your app).
-Traceback:
-Fy-posture-sentinel`
+1. Go to your GitHub repo: `https://github.com/vidushinehraofficial-droid/on-device-privacy-posture-sentinel`
 2. Click **Settings** → **General**
-3. Under **Visibility**, make sure it's **Public**
+3. Set **Visibility** to **Public**
 4. Save
 
 ---
@@ -35,76 +39,107 @@ Fy-posture-sentinel`
    - **GitHub repo**: `vidushinehraofficial-droid/on-device-privacy-posture-sentinel`
    - **Branch**: `main`
    - **Main file path**: `streamlit_app.py`
-4. Click **Deploy**
+   
+4. ⚠️ **IMPORTANT**: Click **Advanced settings**
+   - Change **Python requirements file** from `requirements.txt` → `requirements-cloud.txt`
+   
+5. Click **Deploy**
 
-**Wait 2-3 minutes** for deployment to complete...
+**Wait 2-3 minutes for deployment...**
 
 ---
 
-## Step 4: Share the Link!
+## Step 4: Share the Link
 
-Once deployed, you'll get a public URL like:
+Once deployed, you'll get a URL like:
 ```
 https://privacy-posture-sentinel-xxx.streamlit.app
 ```
 
-Share this link with your friends! They can:
-- ✅ Access from any computer (Windows/Mac/Linux)
-- ✅ Use any browser (Chrome, Firefox, Safari)
-- ✅ No installation needed
-- ✅ Real-time monitoring with webcam
+Share this with your friends! ✅
 
 ---
 
-## Features Available in Web Version
+## What Each Version Does
 
-✅ Live posture tracking  
-✅ Intruder detection  
-✅ Adjustable sensitivity  
-✅ Audio alerts (optional)  
-✅ Session analytics  
-✅ Real-time dashboard  
+### 🌐 Web Version (Streamlit Cloud)
+- ✅ Image upload & preview
+- ✅ Browse features
+- ❌ No AI/ML processing (system limitations)
+- ✅ Mobile friendly
+
+### 💻 Local Version (Desktop)
+- ✅ Live webcam monitoring
+- ✅ Real-time posture detection
+- ✅ Intruder alerts
+- ✅ Audio warnings
+- ✅ Auto screen lock
+- ✅ Full features
+
+---
+
+## Setup Local Version (For Friends)
+
+```bash
+# Clone & setup
+git clone https://github.com/vidushinehraofficial-droid/on-device-privacy-posture-sentinel.git
+cd on-device-privacy-posture-sentinel
+
+# Create virtual environment
+python -m venv sentinel_env
+.\sentinel_env\Scripts\Activate.ps1  # Windows
+# source sentinel_env/bin/activate   # Mac/Linux
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the app
+python main.py
+```
 
 ---
 
 ## Troubleshooting
 
-**"Camera not working"**
-- Browser needs camera permission - accept it when prompted
-- Only works on HTTPS (Streamlit Cloud provides this)
+**"Deployment shows error"**
+- Make sure you selected `requirements-cloud.txt` in Advanced settings
+- Check app logs on Streamlit Cloud dashboard
 
-**"App won't start"**
-- Check your repo is public
-- Check `streamlit_app.py` is in the root folder
-- Check all dependencies are in `requirements.txt`
+**"Web app won't load"**
+- This is normal - web version is preview only
+- For full features, use local version (instructions above)
 
-**"Deployment failed"**
-- Go to Streamlit Cloud dashboard
-- Click your app
-- Check the logs for errors
-
----
-
-## Local Testing (Before Deploying)
-
-Want to test the web version locally first?
-
-```bash
-pip install streamlit
-streamlit run streamlit_app.py
-```
-
-Then open `http://localhost:8501` in your browser.
+**"Local app won't run"**
+- Make sure virtual environment is activated
+- Check Python version is 3.8+
+- Ensure webcam is connected
 
 ---
 
-## Update the App
+## Updating the App
 
-After making changes:
-1. Commit and push to GitHub
-2. Streamlit Cloud auto-detects changes
-3. App automatically redeploys (usually within 1-2 minutes)
+### Local Changes
+1. Edit `main.py` or `gui_module.py`
+2. Test locally: `python main.py`
+3. Commit & push to GitHub
+4. Streamlit Cloud auto-redeployes in 1-2 minutes
+
+### Sharing Updates
+- Teammates pull latest from GitHub: `git pull`
+- No manual redeploy needed!
 
 ---
 
-**That's it! Your friends can now access the app from any browser, from anywhere! 🎉**
+## Project Files
+
+- `main.py` - Main application
+- `gui_module.py` - Desktop GUI interface
+- `vision_module.py` - Posture tracking
+- `security_module.py` - Intruder detection
+- `streamlit_app.py` - Web preview
+- `requirements.txt` - Local dependencies
+- `requirements-cloud.txt` - Streamlit Cloud dependencies
+
+---
+
+**Questions? Check the README.md for more info!**
