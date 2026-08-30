@@ -1,13 +1,9 @@
-import os
-os.environ['DISPLAY'] = ''
 import streamlit as st
-import cv2
 import numpy as np
+from PIL import Image, ImageDraw
 import mediapipe as mp
 import mediapipe.solutions.pose as mp_pose
 import mediapipe.solutions.face_detection as mp_face
-from PIL import Image
-import time
 
 # Page Configuration
 st.set_page_config(page_title="Privacy & Posture Sentinel", layout="wide")
@@ -17,43 +13,39 @@ st.title("🛡️ On-Device Privacy & Posture Sentinel")
 with st.sidebar:
     st.header("⚙️ Settings")
     
-    audio_enabled = st.checkbox("📢 Audio Alerts", value=True)
     sensitivity = st.slider("Slouch Sensitivity (°)", 60, 85, 70)
-    auto_lock = st.checkbox("🔒 Auto Screen Lock", value=True)
     
     st.divider()
     
     st.info("""
     **How it works:**
-    - 📷 Monitors your posture in real-time
+    - 📤 Upload an image to analyze
     - 👤 Detects if someone else is looking at your screen
     - ⚠️ Alerts you if you're slouching
-    - 🔐 Can auto-lock your screen if needed
+    - 🔒 Privacy-focused: No data collection
     """)
 
 # Initialize Models
 @st.cache_resource
 def load_models():
     pose = mp_pose.Pose(
-        static_image_mode=False,
+        static_image_mode=True,
         model_complexity=0,
-        smooth_landmarks=True,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5
+        min_detection_confidence=0.5
     )
     face_detection = mp_face.FaceDetection(min_detection_confidence=0.6)
     return pose, face_detection
 
 pose_model, face_model = load_models()
 
-def analyze_posture(frame, pose, sensitivity_angle=70):
-    """Analyze posture from frame"""
-    h, w, _ = frame.shape
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = pose.process(rgb_frame)
+def analyze_posture(image_pil, pose, sensitivity_angle=70):
+    """Analyze posture from PIL image"""
+    image_np = np.array(image_pil)
+    results = pose.process(image_np)
     
     status = "✅ Good Posture"
     angle = 0.0
+    landmarks_data = None
     
     if results.pose_landmarks:
         landmarks = results.pose_landmarks.landmark
@@ -64,166 +56,123 @@ def analyze_posture(frame, pose, sensitivity_angle=70):
         ear = [ear_lm.x, ear_lm.y]
         shoulder = [shoulder_lm.x, shoulder_lm.y]
         
-        ear_px = (int(ear[0] * w), int(ear[1] * h))
-        shoulder_px = (int(shoulder[0] * w), int(shoulder[1] * h))
-        
         radians = np.arctan2(shoulder[1] - ear[1], shoulder[0] - ear[0])
         angle = np.abs(radians * 180.0 / np.pi)
         
+        landmarks_data = (ear, shoulder)
+        
         if angle < sensitivity_angle or angle > 110:
             status = "⚠️ Slouching Detected!"
-            line_color = (0, 0, 255)  # Red
-        else:
-            line_color = (0, 255, 0)  # Green
         
-        cv2.line(frame, ear_px, shoulder_px, line_color, 3)
-        cv2.circle(frame, ear_px, 6, line_color, -1)
-        cv2.circle(frame, shoulder_px, 6, line_color, -1)
-    
-    return status, angle, frame
+    return status, angle, landmarks_data
 
-def detect_faces(frame, face_detector):
+def detect_faces(image_pil, face_detector):
     """Detect faces and intruders"""
-    h, w, _ = frame.shape
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = face_detector.process(rgb_frame)
+    image_np = np.array(image_pil)
+    results = face_detector.process(image_np)
     
     face_count = 0
     security_status = "✅ Safe"
+    detections = []
     
     if results.detections:
         face_count = len(results.detections)
         
         if face_count > 1:
             security_status = "🚨 INTRUDER DETECTED!"
-            box_color = (0, 0, 255)  # Red
         else:
             security_status = "✅ Safe (1 Face)"
-            box_color = (0, 255, 0)  # Green
         
         for detection in results.detections:
-            bboxC = detection.location_data.relative_bounding_box
-            xmin = int(bboxC.xmin * w)
-            ymin = int(bboxC.ymin * h)
-            box_width = int(bboxC.width * w)
-            box_height = int(bboxC.height * h)
-            
-            cv2.rectangle(frame, (xmin, ymin), (xmin + box_width, ymin + box_height), box_color, 2)
-            
-            label = "User" if face_count == 1 else "INTRUDER!"
-            cv2.putText(frame, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, box_color, 2)
+            detections.append(detection)
     
-    return security_status, face_count, frame
+    return security_status, face_count, detections
+
+def draw_annotations(image_pil, landmarks_data, detections):
+    """Draw posture and face annotations on image"""
+    image_copy = image_pil.copy()
+    draw = ImageDraw.Draw(image_copy)
+    w, h = image_pil.size
+    
+    # Draw posture line
+    if landmarks_data:
+        ear, shoulder = landmarks_data
+        ear_px = (int(ear[0] * w), int(ear[1] * h))
+        shoulder_px = (int(shoulder[0] * w), int(shoulder[1] * h))
+        
+        draw.line([ear_px, shoulder_px], fill=(0, 255, 0), width=3)
+        draw.ellipse([ear_px[0]-6, ear_px[1]-6, ear_px[0]+6, ear_px[1]+6], fill=(0, 255, 0))
+        draw.ellipse([shoulder_px[0]-6, shoulder_px[1]-6, shoulder_px[0]+6, shoulder_px[1]+6], fill=(0, 255, 0))
+    
+    # Draw face detections
+    for detection in detections:
+        bboxC = detection.location_data.relative_bounding_box
+        xmin = int(bboxC.xmin * w)
+        ymin = int(bboxC.ymin * h)
+        box_width = int(bboxC.width * w)
+        box_height = int(bboxC.height * h)
+        
+        box_color = (0, 255, 0) if len(detections) == 1 else (255, 0, 0)
+        
+        draw.rectangle([xmin, ymin, xmin + box_width, ymin + box_height], outline=box_color, width=2)
+        
+        label = "User" if len(detections) == 1 else "INTRUDER!"
+        draw.text((xmin, ymin - 10), label, fill=box_color)
+    
+    return image_copy
 
 # Main Layout
 col1, col2 = st.columns([3, 1])
 
-with col1:
-    st.subheader("📹 Live Feed")
-    video_placeholder = st.empty()
-    frame_placeholder = st.empty()
+st.subheader("📤 Upload Image to Analyze")
+st.write("Upload a photo to analyze posture and detect intruders.")
 
-with col2:
-    st.subheader("📊 Dashboard")
-    posture_placeholder = st.empty()
-    security_placeholder = st.empty()
-    stats_placeholder = st.empty()
+uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
-# Mode Selection
-mode = st.radio("Select Mode:", ["📷 Live Camera (Desktop)", "📤 Upload Image"])
-
-# Mode Selection
-mode = st.radio("Select Mode:", ["📷 Live Camera (Desktop)", "📤 Upload Image"])
-
-if mode == "📷 Live Camera (Desktop)":
-    st.info("💡 **Note:** Live camera works best on desktop. Use 'Upload Image' on mobile or for testing.")
+if uploaded_file is not None:
+    # Load image
+    image_pil = Image.open(uploaded_file).convert('RGB')
     
-    st.write("Starting camera... Please allow camera access when prompted.")
-    
-    cap = cv2.VideoCapture(0)
-    
-    if not cap.isOpened():
-        st.error("❌ Unable to access camera. On Streamlit Cloud, use 'Upload Image' mode instead.")
-    else:
-        start_time = time.time()
-        total_frames = 0
-        slouch_frames = 0
-        
-        stop_button = st.button("Stop Monitoring", key="stop_button")
-        
-        while not stop_button:
-            ret, frame = cap.read()
-            
-            if not ret:
-                st.error("❌ Failed to read frame from camera")
-                break
-            
-            # Flip frame for selfie view
-            frame = cv2.flip(frame, 1)
-            
-            # Analyze posture
-            posture_status, angle, frame = analyze_posture(frame, pose_model, sensitivity)
-            
-            # Detect intruders
-            security_status, face_count, frame = detect_faces(frame, face_model)
-            
-            # Update counters
-            total_frames += 1
-            if "Slouching" in posture_status:
-                slouch_frames += 1
-            
-            # Calculate session stats
-            elapsed_time = time.time() - start_time
-            minutes = int(elapsed_time // 60)
-            seconds = int(elapsed_time % 60)
-            score = max(0, 100 - (slouch_frames / total_frames * 100)) if total_frames > 0 else 100
-            
-            # Convert frame to RGB for display
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
-            # Update displays
-            with col1:
-                video_placeholder.image(frame_rgb, use_column_width=True)
-            
-            with col2:
-                with posture_placeholder.container():
-                    st.metric(label="Posture Status", value=posture_status, delta=f"{angle:.1f}°")
-                
-                with security_placeholder.container():
-                    st.metric(label="Security", value=security_status, delta=f"{face_count} face(s)")
-                
-                with stats_placeholder.container():
-                    st.metric(label="Posture Score", value=f"{score:.1f}%")
-                    st.metric(label="Session Duration", value=f"{minutes}m {seconds}s")
-            
-            # Small delay to prevent overwhelming the browser
-            time.sleep(0.03)
-        
-        cap.release()
-        st.success("✅ Monitoring stopped")
-
-else:  # Upload Image mode
-    st.write("Upload an image to analyze posture and detect intruders.")
-    
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
-    
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    with col1:
+        st.subheader("📹 Analysis")
         
         # Analyze posture
-        posture_status, angle, frame = analyze_posture(frame, pose_model, sensitivity)
+        posture_status, angle, landmarks_data = analyze_posture(image_pil, pose_model, sensitivity)
         
         # Detect intruders
-        security_status, face_count, frame = detect_faces(frame, face_model)
+        security_status, face_count, detections = detect_faces(image_pil, face_model)
         
-        # Convert frame to RGB for display
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        # Draw annotations
+        annotated_image = draw_annotations(image_pil, landmarks_data, detections)
         
-        with col1:
-            st.image(frame_rgb, use_column_width=True)
-        
-        with col2:
-            st.metric(label="Posture Status", value=posture_status, delta=f"{angle:.1f}°")
-            st.metric(label="Security", value=security_status, delta=f"{face_count} face(s)")
-            st.metric(label="Posture Score", value="N/A (Single Frame)")
+        st.image(annotated_image, use_column_width=True)
+    
+    with col2:
+        st.subheader("📊 Results")
+        st.metric(label="Posture", value=posture_status, delta=f"{angle:.1f}°")
+        st.metric(label="Security", value=security_status, delta=f"{face_count} face(s)")
+        st.metric(label="Status", value="Analysis Complete")
+
+else:
+    with col1:
+        st.info("👆 Upload an image to get started!")
+    
+    with col2:
+        st.subheader("📊 Results")
+        st.write("Upload an image to see analysis results here")
+
+st.divider()
+st.markdown("""
+### ℹ️ About This App
+- **Posture Detection**: Analyzes head-to-shoulder angle to detect slouching
+- **Intruder Detection**: Detects if multiple faces are in frame
+- **Privacy Focused**: All processing happens on your device
+- **No Data Collection**: Images are never stored or sent anywhere
+
+### 🚀 For Live Monitoring
+Run the desktop app locally:
+```bash
+pip install -r requirements.txt
+python main.py
+```
+""")
