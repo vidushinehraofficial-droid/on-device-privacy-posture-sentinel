@@ -100,18 +100,30 @@ When the dashboard opens:
 
 The privacy shield covers the primary display with a locally generated blurred snapshot. It does not lock the operating system and it does not terminate the current application.
 
-## Optional Streamlit Preview
+## Deploy the Browser Preview
 
 `streamlit_app.py` provides a browser-based WebRTC view. It is useful for a local preview, but it cannot protect other desktop applications because browser pages cannot place a full-screen overlay over the operating system.
 
-Install the desktop requirements first, then run:
+### Run Locally
 
-```powershell
+```bash
+python -m pip install -r requirements-cloud.txt
 & .\sentinel_env\Scripts\Activate.ps1
 python -m streamlit run streamlit_app.py
 ```
 
 Use `python main.py` when you need monitoring while working in Word, Chrome, VS Code, or another desktop application.
+
+### Streamlit Community Cloud
+
+1. Push the repository to GitHub.
+2. Open [share.streamlit.io](https://share.streamlit.io) and choose **New app**.
+3. Select this repository and the `main` branch.
+4. Set the main file to `streamlit_app.py`.
+5. In advanced settings, select Python `3.11` if available.
+6. Deploy the app.
+
+The cloud deployment uses `requirements-cloud.txt`. Browser camera permission must be granted when the app opens. This hosted version processes the browser camera stream for the web preview; it cannot blur or hide other applications on the user's laptop.
 
 ## Project Structure
 
