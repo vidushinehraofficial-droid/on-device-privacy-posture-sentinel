@@ -117,8 +117,7 @@
       const leftEar = landmarks[7];
       const leftShoulder = landmarks[11];
       const rightShoulder = landmarks[12];
-      if (!leftEar || !leftShoulder || !rightShoulder) return null;
-      if (![leftEar.x, leftEar.y, leftShoulder.x, leftShoulder.y, rightShoulder.x, rightShoulder.y].every(Number.isFinite)) return null;
+      if (!leftEar || !leftShoulder || !rightShoulder || leftEar.visibility < .45) return null;
       const shoulder = { x: (leftShoulder.x + rightShoulder.x) / 2, y: (leftShoulder.y + rightShoulder.y) / 2 };
       const tilt = Math.abs(90 - angleBetween(leftEar, shoulder));
       return { slouching: tilt > Number(sensitivity.value), ear: leftEar, shoulder, tilt };
@@ -126,7 +125,7 @@
 
     async function setupModels() {
       const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
-      poseLandmarker = await PoseLandmarker.createFromOptions(fileset, { baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', delegate: 'GPU' }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: .35, minPosePresenceConfidence: .35, minTrackingConfidence: .35 });
+      poseLandmarker = await PoseLandmarker.createFromOptions(fileset, { baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', delegate: 'GPU' }, runningMode: 'VIDEO', numPoses: 1 });
       faceDetector = await FaceDetector.createFromOptions(fileset, { baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite', delegate: 'GPU' }, runningMode: 'VIDEO', minDetectionConfidence: .6 });
     }
 
