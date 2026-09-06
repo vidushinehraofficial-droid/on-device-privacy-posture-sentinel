@@ -4,16 +4,18 @@
 import customtkinter as ctk
 import cv2
 import time
-from PIL import Image
+from PIL import Image, ImageFilter, ImageGrab
 
 class SentinelApp(ctk.CTk):
     def __init__(self, posture_tracker, security_sentinel):
         super().__init__()
 
         self.title("On-Device Privacy & Posture Sentinel")
-        self.geometry("1000x680")
+        self.geometry("1120x720")
+        self.minsize(980, 640)
+        self.configure(fg_color="#0B1118")
         ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        ctk.set_default_color_theme("dark-blue")
 
         self.posture_tracker = posture_tracker
         self.security_sentinel = security_sentinel
@@ -27,33 +29,36 @@ class SentinelApp(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         # Video Canvas Container
-        self.video_frame = ctk.CTkFrame(self, corner_radius=15)
+        self.video_frame = ctk.CTkFrame(self, corner_radius=18, fg_color="#121B25", border_width=1, border_color="#223242")
         self.video_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
         
         # CTkLabel for Video Display
-        self.video_label = ctk.CTkLabel(self.video_frame, text="")
+        self.video_label = ctk.CTkLabel(self.video_frame, text="Starting camera...", text_color="#91A4B7", font=ctk.CTkFont(size=14))
         self.video_label.pack(expand=True, fill="both", padx=10, pady=10)
 
         # Sidebar Panel
-        self.sidebar = ctk.CTkFrame(self, corner_radius=15)
+        self.sidebar = ctk.CTkFrame(self, corner_radius=18, width=300, fg_color="#101821", border_width=1, border_color="#223242")
         self.sidebar.grid(row=0, column=1, padx=(0, 20), pady=20, sticky="nsew")
+        self.sidebar.grid_propagate(False)
 
-        self.title_label = ctk.CTkLabel(self.sidebar, text="SENTINEL DASHBOARD", font=ctk.CTkFont(size=18, weight="bold"))
-        self.title_label.pack(pady=(15, 15))
+        self.title_label = ctk.CTkLabel(self.sidebar, text="SENTINEL", text_color="#F4F7FA", font=ctk.CTkFont(size=24, weight="bold"))
+        self.title_label.pack(pady=(22, 0))
+        self.subtitle_label = ctk.CTkLabel(self.sidebar, text="Privacy posture monitor", text_color="#7F93A6", font=ctk.CTkFont(size=11))
+        self.subtitle_label.pack(pady=(0, 18))
 
-        self.posture_card = ctk.CTkFrame(self.sidebar)
+        self.posture_card = ctk.CTkFrame(self.sidebar, fg_color="#17232D", corner_radius=12)
         self.posture_card.pack(fill="x", padx=15, pady=6)
         ctk.CTkLabel(self.posture_card, text="Posture Status", font=ctk.CTkFont(size=11)).pack(pady=(4, 0))
         self.posture_val = ctk.CTkLabel(self.posture_card, text="Checking...", font=ctk.CTkFont(size=15, weight="bold"))
         self.posture_val.pack(pady=(0, 4))
 
-        self.security_card = ctk.CTkFrame(self.sidebar)
+        self.security_card = ctk.CTkFrame(self.sidebar, fg_color="#17232D", corner_radius=12)
         self.security_card.pack(fill="x", padx=15, pady=6)
         ctk.CTkLabel(self.security_card, text="Security Sentinel", font=ctk.CTkFont(size=11)).pack(pady=(4, 0))
         self.security_val = ctk.CTkLabel(self.security_card, text="Safe (1 Face)", font=ctk.CTkFont(size=15, weight="bold"))
         self.security_val.pack(pady=(0, 4))
 
-        self.stats_card = ctk.CTkFrame(self.sidebar)
+        self.stats_card = ctk.CTkFrame(self.sidebar, fg_color="#17232D", corner_radius=12)
         self.stats_card.pack(fill="x", padx=15, pady=6)
         ctk.CTkLabel(self.stats_card, text="Session Analytics", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(4, 0))
         self.score_label = ctk.CTkLabel(self.stats_card, text="Score: 100%", font=ctk.CTkFont(size=12))
@@ -61,13 +66,15 @@ class SentinelApp(ctk.CTk):
         self.timer_label = ctk.CTkLabel(self.stats_card, text="Active: 0m 0s", font=ctk.CTkFont(size=11))
         self.timer_label.pack(pady=(0, 4))
 
-        self.lock_switch = ctk.CTkSwitch(self.sidebar, text="Auto Screen Lock")
-        self.lock_switch.select()
-        self.lock_switch.pack(pady=10)
+        self.blur_switch = ctk.CTkSwitch(self.sidebar, text="Privacy Blur", progress_color="#2BB673")
+        self.blur_switch.select()
+        self.blur_switch.pack(pady=10)
 
-        self.audio_switch = ctk.CTkSwitch(self.sidebar, text="Audio Alerts")
+        self.audio_switch = ctk.CTkSwitch(self.sidebar, text="Audio Alerts", progress_color="#2BB673")
         self.audio_switch.select()
         self.audio_switch.pack(pady=5)
+
+        self.privacy_overlay = None
 
         ctk.CTkLabel(self.sidebar, text="Slouch Sensitivity", font=ctk.CTkFont(size=11)).pack(pady=(10, 0))
         self.sensitivity_slider = ctk.CTkSlider(self.sidebar, from_=60, to=85, number_of_steps=25)
@@ -78,17 +85,59 @@ class SentinelApp(ctk.CTk):
         self.cap = None
         self.init_camera()
         self.update_feed()
+
+    def show_privacy_overlay(self):
+        if self.privacy_overlay is None or not self.privacy_overlay.winfo_exists():
+            self.privacy_overlay = ctk.CTkToplevel(self)
+            self.privacy_overlay.withdraw()
+            self.privacy_overlay.attributes("-topmost", True)
+
+            screen_width = self.winfo_screenwidth()
+            screen_height = self.winfo_screenheight()
+            self.privacy_overlay.geometry(f"{screen_width}x{screen_height}+0+0")
+            screen_image = ImageGrab.grab(bbox=(0, 0, screen_width, screen_height))
+            blurred_screen = screen_image.filter(ImageFilter.GaussianBlur(18))
+            self.overlay_image = ctk.CTkImage(
+                light_image=blurred_screen,
+                dark_image=blurred_screen,
+                size=(screen_width, screen_height),
+            )
+            ctk.CTkLabel(self.privacy_overlay, text="", image=self.overlay_image).place(
+                relx=0, rely=0, relwidth=1, relheight=1
+            )
+
+            ctk.CTkLabel(
+                self.privacy_overlay,
+                text="PRIVACY SHIELD ACTIVE",
+                fg_color="#080D13",
+                text_color="#F4F7FA",
+                font=ctk.CTkFont(size=30, weight="bold"),
+            ).place(relx=0.5, rely=0.46, anchor="center")
+            ctk.CTkLabel(
+                self.privacy_overlay,
+                text="Additional person detected. Display hidden until the workspace is private.",
+                fg_color="#080D13",
+                text_color="#91A4B7",
+                font=ctk.CTkFont(size=14),
+            ).place(relx=0.5, rely=0.52, anchor="center")
+
+        self.privacy_overlay.deiconify()
+        self.privacy_overlay.lift()
+
+    def hide_privacy_overlay(self):
+        if self.privacy_overlay is not None and self.privacy_overlay.winfo_exists():
+            self.privacy_overlay.withdraw()
     
     def init_camera(self):
         """Initialize camera - simpler approach"""
         # Try camera index 0 with default backend
         try:
-            self.cap = cv2.VideoCapture(0)
+            camera_backend = cv2.CAP_DSHOW if hasattr(cv2, "CAP_DSHOW") else 0
+            self.cap = cv2.VideoCapture(0, camera_backend)
             if self.cap.isOpened():
                 self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
                 self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
                 self.cap.set(cv2.CAP_PROP_FPS, 30)
-                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Single buffer
                 print(f"[+] Camera initialized on index 0")
                 
                 # Warm up camera by reading a few frames
@@ -137,13 +186,15 @@ class SentinelApp(ctk.CTk):
         else:
             self.posture_val.configure(text="Slouching!", text_color="#E74C3C")
 
-        if security_data.get("intruder_detected", False):
+        intruder_detected = security_data.get("intruder_detected", False)
+        if intruder_detected:
             self.security_val.configure(text="INTRUDER DETECTED!", text_color="#E74C3C")
-            if bool(self.lock_switch.get()):
-                self.security_sentinel.lock_screen()
+            if bool(self.blur_switch.get()):
+                self.show_privacy_overlay()
         else:
             faces = security_data.get("face_count", 0)
             self.security_val.configure(text=f"Safe ({faces} Face)", text_color="#2ECC71")
+            self.hide_privacy_overlay()
 
         elapsed_sec = int(time.time() - self.start_time)
         mins, secs = divmod(elapsed_sec, 60)
@@ -153,7 +204,20 @@ class SentinelApp(ctk.CTk):
         self.timer_label.configure(text=f"Active: {mins}m {secs}s")
 
         # Convert BGR OpenCV image to PIL Image
-        display_frame = cv2.resize(security_data["frame"], (640, 480))
+        display_frame = security_data["frame"]
+        if intruder_detected and bool(self.blur_switch.get()):
+            display_frame = cv2.GaussianBlur(display_frame, (41, 41), 0)
+            cv2.putText(
+                display_frame,
+                "PRIVACY BLUR ACTIVE",
+                (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 165, 255),
+                2,
+            )
+
+        display_frame = cv2.resize(display_frame, (640, 480))
         rgb_img = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
         pil_img = Image.fromarray(rgb_img)
 
@@ -166,5 +230,7 @@ class SentinelApp(ctk.CTk):
     def on_closing(self):
         if self.cap and self.cap.isOpened():
             self.cap.release()
+        if self.privacy_overlay is not None and self.privacy_overlay.winfo_exists():
+            self.privacy_overlay.destroy()
         cv2.destroyAllWindows()
         self.destroy()

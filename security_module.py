@@ -2,9 +2,6 @@
 # Assigned to: Vanshika
 
 import cv2
-import ctypes
-import os
-import platform
 import mediapipe as mp
 import mediapipe.python.solutions.face_detection as mp_face
 
@@ -36,12 +33,3 @@ class SecuritySentinel:
                 cv2.putText(frame, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, box_color, 2)
 
         return {"face_count": face_count, "intruder_detected": face_count > 1, "frame": frame}
-
-    def lock_screen(self):
-        sys_os = platform.system()
-        if sys_os == "Windows":
-            ctypes.windll.user32.LockWorkStation()
-        elif sys_os == "Darwin":
-            os.system("pmset displaysleepnow")
-        elif sys_os == "Linux":
-            os.system("gnome-screensaver-command -l")
