@@ -67,7 +67,7 @@
   </main>
   <div class="shield" id="shield"><div><h2>Privacy shield active</h2><p>Additional person detected. The browser view is hidden until only one person remains in camera view.</p></div></div>
   <script type="module">
-    import { FilesetResolver, PoseLandmarker, FaceDetector } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm';
+    import { FilesetResolver, PoseLandmarker, FaceDetector } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
 
     const camera = document.querySelector('#camera');
     const canvas = document.querySelector('#overlay');
@@ -106,7 +106,7 @@
     }
 
     async function setupModels() {
-      const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm');
+      const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
       poseLandmarker = await PoseLandmarker.createFromOptions(fileset, { baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', delegate: 'GPU' }, runningMode: 'VIDEO', numPoses: 1 });
       faceDetector = await FaceDetector.createFromOptions(fileset, { baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite', delegate: 'GPU' }, runningMode: 'VIDEO', minDetectionConfidence: .6 });
     }
