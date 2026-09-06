@@ -104,6 +104,18 @@ The privacy shield covers the primary display with a locally generated blurred s
 
 `streamlit_app.py` provides a browser-based WebRTC view. It is useful for a local preview, but it cannot protect other desktop applications because browser pages cannot place a full-screen overlay over the operating system.
 
+### Vercel Deployment
+
+The repository now includes a static browser version in `public/index.html` and a `vercel.json` configuration. This version is the Vercel entry point and does not use the desktop `main.py` server-side. It requests the visitor's camera permission and runs the browser models locally.
+
+1. Import this GitHub repository into Vercel.
+2. Keep the framework preset as **Other**.
+3. Leave the build command empty.
+4. Leave the output directory empty.
+5. Deploy from the `main` branch.
+
+If Vercel still reports that `main.py` has no handler, remove the old Vercel project and import the repository again so it picks up the committed `vercel.json`. The hosted browser shield covers the browser tab only; the desktop app is required to protect work shown in other laptop applications.
+
 ### Run Locally
 
 ```bash
