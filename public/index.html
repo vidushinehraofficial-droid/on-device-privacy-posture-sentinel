@@ -37,7 +37,7 @@
     button { width: 100%; border: 0; border-radius: 5px; padding: 12px 14px; color: #06130e; background: var(--green); cursor: pointer; font: 700 13px Arial, sans-serif; }
     button:hover { filter: brightness(1.08); } button:disabled { opacity: .5; cursor: not-allowed; }
     .note { color: var(--muted); font: 12px/1.45 Arial, sans-serif; margin: 16px 0 0; }
-    .shield { position: fixed; inset: 0; z-index: 10; display: none; place-items: center; text-align: center; padding: 24px; background: rgba(8, 13, 18, .88); backdrop-filter: blur(22px); }
+    .shield { position: fixed; inset: 0; z-index: 9999; display: none; place-items: center; text-align: center; padding: 24px; background: rgba(8, 13, 18, .96); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); }
     .shield.active { display: grid; }
     .shield h2 { margin: 0 0 10px; font-size: clamp(28px, 5vw, 52px); font-weight: 500; }
     .shield p { color: var(--muted); font: 14px/1.5 Arial, sans-serif; max-width: 470px; margin: 0; }
@@ -87,12 +87,30 @@
     let startedAt;
     let lastFrame = 0;
     let running = false;
+    let audioContext;
+    let lastAlert = 0;
 
     sensitivity.addEventListener('input', () => sensitivityValue.textContent = `${sensitivity.value} deg`);
 
     function angleBetween(a, b) {
       const radians = Math.atan2(a.y - b.y, a.x - b.x);
       return Math.abs(radians * 180 / Math.PI);
+    }
+
+    function playAlert() {
+      const now = Date.now();
+      if (now - lastAlert < 3000) return;
+      lastAlert = now;
+      if (!audioContext) audioContext = new AudioContext();
+      if (audioContext.state === 'suspended') audioContext.resume();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = 'sine'; oscillator.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.16, audioContext.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.28);
+      oscillator.connect(gain).connect(audioContext.destination);
+      oscillator.start(); oscillator.stop(audioContext.currentTime + 0.3);
     }
 
     function postureFromLandmarks(landmarks) {
@@ -135,6 +153,7 @@
         facesLabel.className = `value ${faces > 1 ? 'bad' : 'good'}`;
         postureLabel.textContent = posture ? (posture.slouching ? 'Slouching' : 'Good posture') : 'No posture found';
         postureLabel.className = `value ${posture?.slouching ? 'bad' : 'good'}`;
+        if (posture?.slouching) playAlert();
         shield.classList.toggle('active', faces > 1);
         const elapsed = Math.floor((Date.now() - startedAt) / 1000);
         sessionLabel.textContent = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
@@ -148,6 +167,8 @@
         await setupModels();
         stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
         camera.srcObject = stream; await camera.play();
+        audioContext = new AudioContext();
+        await audioContext.resume();
         canvas.width = camera.videoWidth; canvas.height = camera.videoHeight; empty.style.display = 'none';
         startedAt = Date.now(); running = true; connection.textContent = 'Monitoring locally'; startButton.textContent = 'Monitoring active'; requestAnimationFrame(loop);
       } catch (error) {
