@@ -74,6 +74,23 @@ class SentinelApp(ctk.CTk):
         self.audio_switch.select()
         self.audio_switch.pack(pady=5)
 
+        self.background_button = ctk.CTkButton(
+            self.sidebar,
+            text="Minimize & Monitor",
+            command=self.start_background_monitor,
+            fg_color="#238B68",
+            hover_color="#1D7357",
+            height=36,
+        )
+        self.background_button.pack(fill="x", padx=15, pady=(16, 4))
+        self.monitoring_label = ctk.CTkLabel(
+            self.sidebar,
+            text="Monitoring stays active when minimized",
+            text_color="#7F93A6",
+            font=ctk.CTkFont(size=10),
+        )
+        self.monitoring_label.pack(pady=(0, 10))
+
         self.privacy_overlay = None
 
         ctk.CTkLabel(self.sidebar, text="Slouch Sensitivity", font=ctk.CTkFont(size=11)).pack(pady=(10, 0))
@@ -85,6 +102,11 @@ class SentinelApp(ctk.CTk):
         self.cap = None
         self.init_camera()
         self.update_feed()
+
+    def start_background_monitor(self):
+        self.title("Sentinel - Monitoring active")
+        self.background_button.configure(text="Monitoring in Background")
+        self.iconify()
 
     def show_privacy_overlay(self):
         if self.privacy_overlay is None or not self.privacy_overlay.winfo_exists():
