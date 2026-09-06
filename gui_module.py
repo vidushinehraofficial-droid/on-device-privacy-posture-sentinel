@@ -98,10 +98,29 @@ class SentinelApp(ctk.CTk):
         self.sensitivity_slider.set(70)
         self.sensitivity_slider.pack(padx=15, pady=5)
 
+        ctk.CTkLabel(self.sidebar, text="Camera Source", font=ctk.CTkFont(size=11)).pack(pady=(10, 0))
+        self.camera_source = ctk.StringVar(value="Auto")
+        self.camera_menu = ctk.CTkOptionMenu(
+            self.sidebar,
+            variable=self.camera_source,
+            values=["Auto", "0", "1", "2"],
+            command=self.change_camera,
+            width=150,
+        )
+        self.camera_menu.pack(padx=15, pady=5)
+
         # Open Camera Stream with proper initialization
         self.cap = None
         self.init_camera()
         self.update_feed()
+
+    def change_camera(self, source):
+        if self.cap is not None and self.cap.isOpened():
+            self.cap.release()
+        self.cap = None
+        self.video_label.configure(text=f"Connecting to camera {source}...", image=None)
+        self.init_camera()
+
 
     def start_background_monitor(self):
         self.title("Sentinel - Monitoring active")
@@ -152,23 +171,24 @@ class SentinelApp(ctk.CTk):
     
     def init_camera(self):
         """Initialize camera - simpler approach"""
-        # Try camera index 0 with default backend
+        selected_source = self.camera_source.get()
+        camera_indices = range(3) if selected_source == "Auto" else [int(selected_source)]
         try:
             camera_backend = cv2.CAP_DSHOW if hasattr(cv2, "CAP_DSHOW") else 0
-            self.cap = cv2.VideoCapture(0, camera_backend)
-            if self.cap.isOpened():
-                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                self.cap.set(cv2.CAP_PROP_FPS, 30)
-                print(f"[+] Camera initialized on index 0")
-                
-                # Warm up camera by reading a few frames
-                import time
-                for i in range(5):
-                    ret, frame = self.cap.read()
-                    time.sleep(0.1)
-                
-                return
+            for camera_index in camera_indices:
+                candidate = cv2.VideoCapture(camera_index, camera_backend)
+                if not candidate.isOpened():
+                    candidate.release()
+                    continue
+                candidate.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                candidate.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                candidate.set(cv2.CAP_PROP_FPS, 30)
+                ret, frame = candidate.read()
+                if ret and frame is not None and frame.size > 0:
+                    self.cap = candidate
+                    print(f"[+] Camera initialized on index {camera_index}")
+                    return
+                candidate.release()
         except Exception as e:
             print(f"[!] Camera initialization error: {e}")
         
